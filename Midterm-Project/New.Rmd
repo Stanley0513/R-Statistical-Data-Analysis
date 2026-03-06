@@ -1,0 +1,358 @@
+---
+title: "Untitled"
+author: "黃柏翰"
+date: "2025-09-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(HH)
+
+# 如果有 blood，直接載入
+data("blood", package = "HH")
+
+# 這時候會在環境裡出現一個 data.frame
+head(blood)
+
+names(blood)
+varname <- names(blood)
+varname[1] <- "times"   # 把第一個欄位改成 individual
+names(blood) <- varname
+```
+
+
+```{r}
+# 幾種 diet？
+numbofdiet <- length(unique(blood$diet))
+numbofdiet
+
+# 每個 diet 的樣本數
+samplesizebydiet <- tapply(X = blood$times,
+                           INDEX = blood$diets,
+                           FUN = length)
+samplesizebydiet
+
+# 每個 diet 的平均
+samplemeanbydiet <- tapply(X = blood$times,
+                           INDEX = blood$diets,
+                           FUN = mean)
+samplemeanbydiet
+
+# 每個 diet 的變異數
+samplevariancebydiet <- tapply(X = blood$times,
+                               INDEX = blood$diets,
+                               FUN = sd)
+
+
+
+samplevariancebydiet <- (samplevariancebydiet)^2
+samplevariancebydiet
+
+# 檢查等變異假設
+if (max(samplevariancebydiet) / min(samplevariancebydiet) < 4) {
+  sprintf("The ratio of the largest variance to the smallest variance of sample observations by diet is %.2f < 4.", 
+          max(samplevariancebydiet) / min(samplevariancebydiet))
+} else {
+  sprintf("The ratio of the largest variance to the smallest variance of sample observations by diet is %.2f >= 4.", 
+          max(samplevariancebydiet) / min(samplevariancebydiet))
+}
+```
+
+```{r}
+# --- 1. 準備工作：建立資料與載入套件 ---
+
+# 如果您尚未安裝 nortest 套件，請先執行下面這行來安裝
+# install.packages("nortest")
+
+# 載入 nortest 套件以使用 lillie.test() 函數
+library(nortest)
+
+# 根據您提供的最新資料，建立一個資料框 (data frame)
+# 數值向量
+coag_values <- c(62, 60, 63, 59,  # Group A
+                 63, 67, 71, 64, 65, 66,  # Group B
+                 68, 66, 71, 67, 68, 68,  # Group C
+                 56, 62, 60, 61, 63, 64, 63, 59) # Group D
+
+# 分組向量 (使用 factor 建立分類變數)
+diet_groups <- factor(rep(c("A", "B", "C", "D"), times = c(4, 6, 6, 8)))
+
+# 將兩個向量合併成一個資料框
+new_blood_data <- data.frame(coag = coag_values, diet = diet_groups)
+
+# (可選) 檢查一下資料是否正確建立
+print("您提供的資料已建立為以下資料框：")
+print(new_blood_data)
+
+
+# --- 2. 對模型殘差進行 Lilliefors 檢定 (標準作法) ---
+
+cat("\n--- 標準作法：檢定 ANOVA 模型殘差 ---\n")
+
+# 建立 ANOVA 模型
+aov_model <- aov(coag ~ diet, data = new_blood_data)
+
+# 從模型中提取殘差 (Residuals)
+model_residuals <- residuals(aov_model)
+
+# 對殘差執行 Lilliefors Test
+lillie_result_residuals <- lillie.test(model_residuals)
+
+# 印出標準作法的檢定結果
+print(lillie_result_residuals)
+
+
+# --- 3. 分別對四組原始數據進行 Lilliefors 檢定 (探索性作法) ---
+
+cat("\n--- 探索性作法：分別檢定四組原始數據 ---\n")
+
+# 篩選出 A 組的資料並進行檢定
+group_A_data <- new_blood_data$coag[new_blood_data$diet == "A"]
+lillie_result_A <- lillie.test(group_A_data)
+cat("飼料組 'A' 的檢定結果:\n")
+print(lillie_result_A)
+
+# 篩選出 B 組的資料並進行檢定
+group_B_data <- new_blood_data$coag[new_blood_data$diet == "B"]
+lillie_result_B <- lillie.test(group_B_data)
+cat("\n飼料組 'B' 的檢定結果:\n")
+print(lillie_result_B)
+
+# 篩選出 C 組的資料並進行檢定
+group_C_data <- new_blood_data$coag[new_blood_data$diet == "C"]
+lillie_result_C <- lillie.test(group_C_data)
+cat("\n飼料組 'C' 的檢定結果:\n")
+print(lillie_result_C)
+
+# 篩選出 D 組的資料並進行檢定
+group_D_data <- new_blood_data$coag[new_blood_data$diet == "D"]
+lillie_result_D <- lillie.test(group_D_data)
+cat("\n飼料組 'D' 的檢定結果:\n")
+print(lillie_result_D)
+```
+```{r}
+# --- 1. 準備工作：建立資料 ---
+
+# 根據您提供的最新資料，建立一個資料框 (data frame)
+# 數值向量
+coag_values <- c(62, 60, 63, 59,  # Group A
+                 63, 67, 71, 64, 65, 66,  # Group B
+                 68, 66, 71, 67, 68, 68,  # Group C
+                 56, 62, 60, 61, 63, 64, 63, 59) # Group D
+
+# 分組向量 (使用 factor 建立分類變數)
+diet_groups <- factor(rep(c("A", "B", "C", "D"), times = c(4, 6, 6, 8)))
+
+# 將兩個向量合併成一個資料框
+new_blood_data <- data.frame(coag = coag_values, diet = diet_groups)
+
+# (可選) 檢查一下資料是否正確建立
+print("您提供的資料已建立為以下資料框：")
+print(new_blood_data)
+
+
+# --- 2. 對模型殘差進行 Shapiro-Wilk 檢定 (標準作法) ---
+
+cat("\n--- 標準作法：檢定 ANOVA 模型殘差 ---\n")
+
+# 建立 ANOVA 模型
+aov_model <- aov(coag ~ diet, data = new_blood_data)
+
+# 從模型中提取殘差 (Residuals)
+model_residuals <- residuals(aov_model)
+
+# 對殘差執行 Shapiro-Wilk Test
+shapiro_result_residuals <- shapiro.test(model_residuals)
+
+# 印出標準作法的檢定結果
+print(shapiro_result_residuals)
+
+
+# --- 3. 分別對四組原始數據進行 Shapiro-Wilk 檢定 (探索性作法) ---
+
+cat("\n--- 探索性作法：分別檢定四組原始數據 ---\n")
+
+# 篩選出 A 組的資料並進行檢定 (Shapiro-Wilk 可用於 n >= 3 的情況)
+group_A_data <- new_blood_data$coag[new_blood_data$diet == "A"]
+shapiro_result_A <- shapiro.test(group_A_data)
+cat("飼料組 'A' 的檢定結果:\n")
+print(shapiro_result_A)
+
+# 篩選出 B 組的資料並進行檢定
+group_B_data <- new_blood_data$coag[new_blood_data$diet == "B"]
+shapiro_result_B <- shapiro.test(group_B_data)
+cat("\n飼料組 'B' 的檢定結果:\n")
+print(shapiro_result_B)
+
+# 篩選出 C 組的資料並進行檢定
+group_C_data <- new_blood_data$coag[new_blood_data$diet == "C"]
+shapiro_result_C <- shapiro.test(group_C_data)
+cat("\n飼料組 'C' 的檢定結果:\n")
+print(shapiro_result_C)
+
+# 篩選出 D 組的資料並進行檢定
+group_D_data <- new_blood_data$coag[new_blood_data$diet == "D"]
+shapiro_result_D <- shapiro.test(group_D_data)
+cat("\n飼料組 'D' 的檢定結果:\n")
+print(shapiro_result_D)
+```
+
+```{r}
+# ANOVA
+myanova <- aov(times ~ diets, data = blood)
+anova(myanova)
+```
+
+
+```{r}
+# Tukey 事後檢定
+TukeyHSD(myanova, conf.level = .95)
+```
+
+
+```{r}
+# 畫圖
+plot(TukeyHSD(myanova, conf.level = 0.95), las = 0)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+# 如果尚未安裝，請執行 install.packages("car")
+library(car)
+
+# 根據您提供的資料，建立資料框
+coag_values <- c(62, 60, 63, 59, 63, 67, 71, 64, 65, 66, 68, 66, 71, 67, 68, 68, 56, 62, 60, 61, 63, 64, 63, 59)
+diet_groups <- factor(rep(c("A", "B", "C", "D"), times = c(4, 6, 6, 8)))
+new_blood_data <- data.frame(coag = coag_values, diet = diet_groups)
+
+
+# --- 1. 進行資料轉換 ---
+
+# 我們新增一欄 'log_coag'，存放原始 'coag' 值取 log 後的結果
+# 對數轉換對於校正右偏態數據和穩定變異數非常有效
+new_blood_data$log_coag <- log(new_blood_data$coag)
+
+# (可選) 查看一下轉換後的資料
+cat("--- 轉換後的資料 (新增 log_coag 欄位) ---\n")
+head(new_blood_data)
+
+
+# --- 2. 重新進行假設檢定 (使用轉換後的資料) ---
+
+cat("\n\n--- 重新檢定轉換後的資料 ---\n")
+
+# 2a. 檢定殘差常態性 (Lilliefors Test)
+# 我們需要建立一個使用 log_coag 的新 ANOVA 模型
+aov_model_log <- aov(log_coag ~ diet, data = new_blood_data)
+model_residuals_log <- residuals(aov_model_log)
+
+cat("2a. 殘差常態性檢定 (Lilliefors Test):\n")
+# --- 這就是您要求的，將 shapiro.test() 換成 lillie.test() ---
+print(lillie.test(model_residuals_log))
+# 目標：希望 p-value > 0.05
+
+# 2a. 檢定殘差常態性 (Shapiro-Wilk Test)
+# 我們需要建立一個使用 log_coag 的新 ANOVA 模型
+aov_model_log <- aov(log_coag ~ diet, data = new_blood_data)
+model_residuals_log <- residuals(aov_model_log)
+
+cat("2a. 殘差常態性檢定 (Shapiro-Wilk Test):\n")
+print(shapiro.test(model_residuals_log))
+# 目標：希望 p-value > 0.05
+
+# 2b. 檢定變異數同質性 (Levene's Test)
+cat("\n2b. 變異數同質性檢定 (Levene's Test):\n")
+print(leveneTest(log_coag ~ diet, data = new_blood_data))
+# 目標：希望 p-value > 0.05
+
+
+# --- 3. 重新執行 ANOVA 與 Tukey 檢定 (如果假設檢定通過) ---
+
+# 如果上面兩項檢定的 p-value 都大於 0.05，我們就可以信任地看轉換後模型的分析結果
+cat("\n\n--- 重新執行 ANOVA 與 Tukey 檢定 ---\n")
+
+# 3a. ANOVA 分析
+cat("3a. ANOVA Table (使用 log 轉換後的資料):\n")
+print(summary(aov_model_log))
+
+# 3b. TukeyHSD 多重比較
+cat("\n3b. Tukey HSD (使用 log 轉換後的資料):\n")
+print(TukeyHSD(aov_model_log))
+plot(TukeyHSD(aov_model_log, conf.level = 0.95), las = 0)
+```
+```{r}
+# --- 1. 準備工作：建立資料、進行倒數轉換、載入套件 ---
+
+# Lilliefors Test 需要 'nortest' 套件
+# 如果尚未安裝，請執行 install.packages("nortest")
+library(nortest)
+
+# 根據您提供的資料，建立資料框
+coag_values <- c(62, 60, 63, 59, 63, 67, 71, 64, 65, 66, 68, 66, 71, 67, 68, 68, 56, 62, 60, 61, 63, 64, 63, 59)
+diet_groups <- factor(rep(c("A", "B", "C", "D"), times = c(4, 6, 6, 8)))
+new_blood_data <- data.frame(coag = coag_values, diet = diet_groups)
+
+# 新增一欄 'recip_coag'，存放原始 'coag' 值取倒數 (1/x) 後的結果
+new_blood_data$recip_coag <- 1 / new_blood_data$coag
+
+
+# --- 2. 標準作法：對模型殘差進行 Lilliefors 檢定 ---
+
+cat("\n--- 標準作法：檢定 ANOVA 模型殘差 (使用倒數資料) ---\n")
+
+# 建立一個使用 recip_coag 的新 ANOVA 模型
+aov_model_recip <- aov(recip_coag ~ diet, data = new_blood_data)
+model_residuals_recip <- residuals(aov_model_recip)
+
+# 對殘差執行 Lilliefors Test
+lillie_result_residuals_recip <- lillie.test(model_residuals_recip)
+print(lillie_result_residuals_recip)
+
+
+# --- 3. 探索性作法：分別檢定四組「倒數轉換後」的數據 ---
+
+cat("\n\n--- 探索性作法：分別檢定倒數轉換後的四組數據 ---\n")
+
+# -- 飼料組 A --
+cat("飼料組 'A' (倒數轉換後) 的檢定結果:\n")
+group_A_recip_data <- new_blood_data$recip_coag[new_blood_data$diet == "A"]
+cat("A組樣本數為 4，不符合 lillie.test() 要求 (n > 4)。\n")
+cat("因此自動改用 shapiro.test() 進行檢定:\n")
+print(shapiro.test(group_A_recip_data))
+
+
+# -- 飼料組 B --
+cat("\n飼料組 'B' (倒數轉換後) 的檢定結果:\n")
+group_B_recip_data <- new_blood_data$recip_coag[new_blood_data$diet == "B"]
+lillie_result_B_recip <- lillie.test(group_B_recip_data)
+print(lillie_result_B_recip)
+
+
+# -- 飼料組 C --
+cat("\n飼料組 'C' (倒數轉換後) 的檢定結果:\n")
+group_C_recip_data <- new_blood_data$recip_coag[new_blood_data$diet == "C"]
+lillie_result_C_recip <- lillie.test(group_C_recip_data)
+print(lillie_result_C_recip)
+
+
+# -- 飼料組 D --
+cat("\n飼料組 'D' (倒數轉換後) 的檢定結果:\n")
+group_D_recip_data <- new_blood_data$recip_coag[new_blood_data$diet == "D"]
+lillie_result_D_recip <- lillie.test(group_D_recip_data)
+print(lillie_result_D_recip)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
